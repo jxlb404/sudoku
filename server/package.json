@@ -1,0 +1,10 @@
+{
+  "name": "sudoku-leaderboard-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "leaderboard-server.mjs",
+  "scripts": {
+    "start": "node leaderboard-server.mjs"
+  }
+}

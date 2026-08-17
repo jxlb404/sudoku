@@ -1,0 +1,2561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#3f5fd0" id="themeColor">
+<title>数独 · Sudoku</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  color: var(--text);
+  background: linear-gradient(165deg, var(--bg1), var(--bg2));
+  transition: background 0.4s ease, color 0.4s ease;
+}
+.app {
+  width: min(430px, 100%);
+  padding: 28px 20px calc(104px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.hidden { display: none !important; }
+
+/* ================= 三种难度主题 ================= */
+/* 简单 · 清新绿 */
+body.theme-easy {
+  --bg1: #dcf4e6; --bg2: #c1ead2;
+  --card: #ffffff;
+  --text: #142e1e; --text-dim: #4f7a63;
+  --accent: #0e7a4c; --accent-soft: #d2f0e0;
+  --line: #b9dac5; --line-strong: #3e8a63;
+  --highlight: #eaf7ef; --same: #d4efe0; --sel: #a9dfc5;
+  --given: #10291a; --user: #0e7a4c; --conflict: #d9304a;
+  --pad-bg: #0e7a4c;
+  --shadow: 0 10px 28px rgba(14, 122, 76, 0.2);
+}
+/* 普通 · 经典蓝 */
+body.theme-normal {
+  --bg1: #dfe6ff; --bg2: #c7d3ff;
+  --card: #ffffff;
+  --text: #181c3a; --text-dim: #5f6690;
+  --accent: #2f4fc0; --accent-soft: #dfe5ff;
+  --line: #c0c9ec; --line-strong: #3d53a0;
+  --highlight: #eef1ff; --same: #d9e0ff; --sel: #bcc9ff;
+  --given: #131738; --user: #2f4fc0; --conflict: #d9304a;
+  --pad-bg: #2f4fc0;
+  --shadow: 0 10px 28px rgba(47, 79, 192, 0.2);
+}
+/* 专家 · 玫瑰粉（淡色系） */
+body.theme-expert {
+  --bg1: #fbe7ec; --bg2: #f6d2dc;
+  --card: #ffffff;
+  --text: #351520; --text-dim: #8f5a6a;
+  --accent: #b82f56; --accent-soft: #f9dbe4;
+  --line: #e9c3cf; --line-strong: #9f5f74;
+  --highlight: #fdf1f4; --same: #f7dce4; --sel: #f0bfcd;
+  --given: #2c1018; --user: #b82f56; --conflict: #cf2735;
+  --pad-bg: #b82f56;
+  --shadow: 0 10px 28px rgba(184, 47, 86, 0.22);
+}
+/* 宇宙无敌 · 星云紫（淡色系） */
+body.theme-super {
+  --bg1: #f1ecfd; --bg2: #e2d7fa;
+  --card: #ffffff;
+  --text: #241a3a; --text-dim: #6f6390;
+  --accent: #7c3aed; --accent-soft: #e9e0fc;
+  --line: #ddd2f0; --line-strong: #8f74c9;
+  --highlight: #f4effd; --same: #e9e0fb; --sel: #d6c6f7;
+  --given: #1c122e; --user: #7c3aed; --conflict: #d9304a;
+  --pad-bg: #7c3aed;
+  --shadow: 0 10px 28px rgba(124, 58, 237, 0.2);
+}
+
+/* ================= 主页 ================= */
+.home-head { text-align: center; }
+.logo {
+  width: 64px; height: 64px;
+  margin: 0 auto 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-radius: 16px;
+  border: 3px solid var(--accent);
+  padding: 4px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.logo i { border: 1px solid var(--line); border-radius: 2px; }
+.logo i:nth-child(1), .logo i:nth-child(5), .logo i:nth-child(9) { background: var(--accent); border-color: var(--accent); }
+h1 { margin: 0; font-size: 38px; letter-spacing: 12px; margin-right: -12px; font-weight: 900; }
+.sub { margin: 8px 0 22px; color: var(--text-dim); font-size: 13px; }
+
+/* 三个栏目页面 */
+.tab-page { display: flex; flex-direction: column; gap: 20px; }
+.page-head { text-align: center; }
+.page-head h2 { margin: 0; font-size: 24px; font-weight: 900; }
+.page-head .sub { margin: 6px 0 0; }
+.foot-note { text-align: center; color: var(--text-dim); font-size: 12px; margin: 2px 0 0; }
+.games-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  padding: 0 10px;
+}
+
+/* 底部栏目 */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--card);
+  box-shadow: 0 -4px 18px rgba(30, 40, 90, 0.14);
+  z-index: 40;
+}
+.tab-item {
+  flex: 1;
+  max-width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  border-radius: 14px;
+  padding: 8px 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.tab-item.active { background: var(--accent-soft); color: var(--accent); }
+.tab-icon { font-size: 20px; font-weight: 900; }
+.tab-label { font-size: 11px; font-weight: 800; }
+
+/* 每日一题卡片 */
+.daily-card {
+  width: 100%;
+  border: none;
+  border-radius: 18px;
+  padding: 18px 20px;
+  background: linear-gradient(120deg, #f6c453, #e8892c);
+  color: #3a2408;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(232, 137, 44, 0.35);
+  text-align: left;
+  touch-action: manipulation;
+}
+.daily-left { display: flex; flex-direction: column; gap: 3px; }
+.daily-badge { font-size: 17px; font-weight: 900; }
+.daily-date { font-size: 12px; opacity: 0.85; }
+.daily-status { font-size: 12px; font-weight: 800; }
+.daily-go { font-size: 22px; font-weight: 900; }
+
+/* 报错方式选择 */
+.mode-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mode-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.mode-seg {
+  display: flex;
+  flex: 1;
+  background: var(--card);
+  border-radius: 999px;
+  padding: 3px;
+  box-shadow: var(--shadow);
+}
+.seg {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-dim);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.seg.active { background: var(--accent); color: #fff; }
+
+/* 继续游戏 / 上次完成 卡片 */
+.state-card {
+  width: 100%;
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  touch-action: manipulation;
+}
+.state-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.state-card.resume .state-icon { background: var(--accent-soft); }
+.state-card.record .state-icon { background: linear-gradient(120deg, #f6c453, #e8892c); color: #3a2408; }
+.state-card.rank .state-icon { background: linear-gradient(120deg, #7aa2ff, #5b5bef); color: #fff; }
+.state-card.guide .state-icon { background: linear-gradient(120deg, #9aa0ff, #6a6ff0); color: #fff; }
+.state-info { flex: 1; min-width: 0; }
+.state-title { font-size: 15px; font-weight: 900; }
+.state-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.state-actions { display: flex; gap: 8px; }
+.state-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 13px;
+  font-size: 12px;
+  font-weight: 900;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.state-btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--text); }
+
+/* 难度卡片 */
+.diff-list { display: flex; flex-direction: column; gap: 18px; }
+.diff-card {
+  width: 100%;
+  border: none;
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+  touch-action: manipulation;
+}
+.diff-info { flex: 1; }
+.diff-name { font-size: 18px; font-weight: 800; }
+.diff-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.diff-arrow { font-size: 20px; color: var(--text-dim); font-weight: 800; }
+
+/* 变体玩法入口 */
+.variant-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.variant-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  border-radius: 16px;
+  padding: 14px 10px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.vc-icon { font-size: 24px; font-weight: 900; color: var(--accent); }
+.vc-name { font-size: 14px; font-weight: 900; color: var(--text); }
+.vc-sub { font-size: 10px; color: var(--text-dim); }
+
+/* 难度小预览（各自固定配色，体现风格差异） */
+.mini-board {
+  width: 52px; height: 52px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 2px solid;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.mini-board i { border-right: 1px solid; border-bottom: 1px solid; }
+.mini-board i:nth-child(3n) { border-right: none; }
+.mini-board i:nth-child(n+7) { border-bottom: none; }
+.mini-easy { border-color: #3e8a63; background: #f2fbf6; }
+.mini-easy i { border-color: #d7e8dd; background: #f7fdf9; }
+.mini-easy i.filled { background: #0e7a4c; }
+.mini-normal { border-color: #3d53a0; background: #f2f4ff; }
+.mini-normal i { border-color: #d8ddf2; background: #f7f8ff; }
+.mini-normal i.filled { background: #2f4fc0; }
+.mini-expert { border-color: #9f5f74; background: #fdf3f5; }
+.mini-expert i { border-color: #f0d7de; background: #fff8fa; }
+.mini-expert i.filled { background: #b82f56; }
+.mini-super { border-color: #8f74c9; background: #f4effd; }
+.mini-super i { border-color: #ddd2f0; background: #faf8ff; }
+.mini-super i.filled { background: #7c3aed; }
+
+/* ================= 游戏界面 ================= */
+.game-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-btn {
+  width: 44px; height: 44px;
+  border: none;
+  border-radius: 13px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.game-title-wrap { flex: 1; text-align: center; }
+.game-title { font-size: 17px; font-weight: 900; }
+.game-sub { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.variant-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.chip {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px;
+}
+.board-card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  position: relative;
+  border: 1.5px solid var(--line-strong);
+}
+.board-card.simulating::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 120, 145, 0.16);
+  border-radius: 18px;
+  pointer-events: none;
+}
+.sim-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sim-badge, .sim-apply {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+.sim-badge { background: rgba(50, 52, 70, 0.78); }
+.sim-apply { background: #22a06b; }
+
+/* 传统九宫格棋盘：81 格，3×3 大块粗线分隔 */
+.board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  border: 3px solid var(--line-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card);
+}
+.cell {
+  aspect-ratio: 1;
+  border: none;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+  position: relative;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.cell:nth-child(9n) { border-right: none; }
+.cell:nth-child(n+73) { border-bottom: none; }
+.cell:nth-child(9n+3), .cell:nth-child(9n+6) { border-right: 2.5px solid var(--line-strong); }
+.cell:nth-child(n+19):nth-child(-n+27),
+.cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2.5px solid var(--line-strong); }
+.cell.win { background: rgba(115, 120, 150, 0.16); }
+.cell.selected { background: var(--sel); }
+.cell.peer { background: var(--highlight); }
+.cell.same { background: var(--same); }
+.cell.conflict .v { color: var(--conflict) !important; }
+.cell.wrong { background: rgba(229, 72, 77, 0.12); }
+.v {
+  font-size: clamp(17px, 5.4vw, 27px);
+  font-weight: 800;
+  line-height: 1;
+}
+.v.given { color: var(--given); }
+.v.user { color: var(--user); }
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+}
+.note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(7px, 2.1vw, 11px);
+  font-weight: 700;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+/* 控制区 */
+.controls { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.ctl {
+  padding: 12px 0;
+  border-radius: 14px;
+  background: var(--card);
+  border: none;
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ctl span { display: block; font-size: 17px; margin-bottom: 2px; }
+.ctl.active { background: var(--accent); color: #fff; }
+.pad {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 7px;
+  background: var(--pad-bg);
+  border-radius: 18px;
+  padding: 12px 10px;
+  box-shadow: 0 8px 22px rgba(30, 40, 90, 0.22);
+}
+.num {
+  aspect-ratio: 1;
+  position: relative;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* 弹窗 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 14, 34, 0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.win-card {
+  background: var(--card);
+  border-radius: 24px;
+  padding: 30px 24px 24px;
+  text-align: center;
+  width: min(320px, 86vw);
+  position: relative;
+  overflow: hidden;
+  color: var(--text);
+}
+.trophy { font-size: 54px; margin-bottom: 6px; }
+.win-card h2 { margin: 4px 0 6px; font-size: 24px; }
+.win-stats { color: var(--text-dim); margin: 0 0 18px; font-size: 14px; }
+.win-actions { display: flex; gap: 10px; justify-content: center; }
+.exit-actions { display: flex; flex-direction: column; gap: 10px; }
+.exit-actions .btn { width: 100%; }
+.btn {
+  padding: 13px 22px;
+  border-radius: 14px;
+  border: none;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--text); }
+.btn.danger { background: var(--conflict); color: #fff; }
+
+/* 排行榜 */
+.rank-panel {
+  background: var(--card);
+  border-radius: 22px;
+  padding: 20px;
+  width: min(390px, 94vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text);
+}
+.rank-head { display: flex; justify-content: space-between; align-items: center; }
+.rank-head h2 { margin: 0; font-size: 20px; }
+.rank-close {
+  border: none;
+  background: var(--bg1);
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.rank-profile { display: flex; gap: 8px; }
+.rank-server { display: flex; gap: 8px; }
+.rank-input {
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--bg1);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.rank-input:focus { border-color: var(--accent); }
+.rank-save {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.rank-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.rank-tab {
+  flex: 0 0 auto;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.rank-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rank-body { display: flex; flex-direction: column; gap: 8px; }
+.rank-empty { text-align: center; color: var(--text-dim); padding: 22px 0; font-size: 13px; }
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg1);
+}
+.rank-row.me { outline: 2px solid var(--accent); }
+.rank-no { width: 26px; text-align: center; font-weight: 900; font-size: 15px; }
+.rank-info { flex: 1; min-width: 0; }
+.rank-name {
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank-addr { font-size: 11px; color: var(--text-dim); }
+.rank-time { font-weight: 900; font-variant-numeric: tabular-nums; font-size: 14px; }
+.rank-date { font-size: 11px; color: var(--text-dim); text-align: right; }
+.rank-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rank-stats b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.rank-mode-badge {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+/* 功能解说 */
+.guide-panel {
+  background: var(--card);
+  border-radius: 22px;
+  padding: 20px;
+  width: min(400px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text);
+}
+.guide-item {
+  background: var(--bg1);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.guide-title { font-size: 14px; font-weight: 900; }
+.guide-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+.guide-demo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.guide-demo .mcol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mlabel { font-size: 10px; color: var(--text-dim); font-weight: 700; text-align: center; }
+.mboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 60px;
+  height: 60px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card);
+}
+.mcell {
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  font-style: normal;
+}
+.mcell:nth-child(3n) { border-right: none; }
+.mcell:nth-child(n+7) { border-bottom: none; }
+.mcell.given { color: var(--given); }
+.mcell.user { color: var(--user); }
+.mcell.sel { background: var(--sel); }
+.mcell.err { color: var(--conflict); background: rgba(229, 72, 77, 0.12); }
+.mcell.done { background: rgba(34, 160, 107, 0.12); }
+.mpad {
+  display: flex;
+  gap: 3px;
+  background: var(--pad-bg);
+  padding: 6px;
+  border-radius: 10px;
+}
+.mkey {
+  width: 18px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.mkey.done { background: #fff; color: var(--pad-bg); }
+.mkey.done::after {
+  content: "✓";
+  position: absolute;
+  top: 0;
+  right: 1px;
+  font-size: 6px;
+  color: #1fa06a;
+  font-weight: 900;
+}
+.mdaily {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: linear-gradient(120deg, #f6c453, #e8892c);
+  color: #3a2408;
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 150px;
+}
+.mdaily-title { font-size: 13px; font-weight: 900; }
+.mdaily-date { font-size: 10px; opacity: 0.85; }
+.mdaily-go { font-size: 14px; font-weight: 900; text-align: right; }
+.msim { position: relative; }
+.mveil {
+  position: absolute;
+  inset: 0;
+  background: rgba(80, 82, 100, 0.5);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+.mpills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.msim-pill {
+  background: rgba(50, 52, 70, 0.78);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.msim-pill.green { background: #22a06b; }
+.mcard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  min-width: 140px;
+  box-shadow: var(--shadow);
+}
+.mcard.gold { background: linear-gradient(120deg, #f6c453, #e8892c); color: #3a2408; }
+.mcard-sub { font-size: 10px; color: var(--text-dim); font-weight: 600; }
+.mcard.gold .mcard-sub { color: rgba(58, 36, 8, 0.8); }
+.mrank { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.mrank-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.mrank-row b { width: 20px; text-align: center; }
+.mrank-row span { flex: 1; font-weight: 700; }
+.mrank-row em { font-style: normal; font-weight: 900; font-variant-numeric: tabular-nums; }
+.mrank-row.me { outline: 2px solid var(--accent); }
+.mtoast {
+  background: rgba(40, 42, 60, 0.92);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 800;
+}
+/* 9×9 规则示意图 */
+.gboard {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  width: 180px;
+  height: 180px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card);
+}
+.gcell {
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.gcell:nth-child(9n) { border-right: none; }
+.gcell:nth-child(n+73) { border-bottom: none; }
+.gcell.win { background: rgba(115, 120, 150, 0.22); }
+.gcell.diag { background: rgba(42, 157, 143, 0.18); }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti i {
+  position: absolute;
+  top: -16px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: fall linear forwards;
+}
+@keyframes fall {
+  to { transform: translateY(90vh) rotate(720deg); opacity: 0; }
+}
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 14, 34, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast {
+  position: fixed;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  background: rgba(40, 42, 60, 0.92);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+</style>
+</head>
+<body class="theme-normal">
+  <main class="app">
+
+    <!-- ======== 主页 ======== -->
+    <section id="homeView">
+      <!-- 数独栏 -->
+      <div class="tab-page" id="pageSudoku">
+        <header class="home-head">
+          <div class="logo"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <h1>数独</h1>
+          <p class="sub">经典九宫格 · 每天一题 · 进度可保存</p>
+        </header>
+
+        <button class="daily-card" id="dailyCard" type="button">
+          <div class="daily-left">
+            <span class="daily-badge">每日一题</span>
+            <span class="daily-date" id="dailyDate"></span>
+            <span class="daily-status" id="dailyStatus"></span>
+          </div>
+          <div class="daily-go">开始 →</div>
+        </button>
+
+        <div class="mode-row">
+          <span class="mode-label">报错方式</span>
+          <div class="mode-seg">
+            <button class="seg active" id="modeImmediate" type="button">⚡ 及时报错</button>
+            <button class="seg" id="modeFinal" type="button">🏁 完成后检查</button>
+          </div>
+        </div>
+
+        <div class="state-card resume hidden" id="resumeCard">
+          <div class="state-icon">▶</div>
+          <div class="state-info">
+            <div class="state-title">继续上次游戏</div>
+            <div class="state-desc" id="resumeDesc"></div>
+          </div>
+          <div class="state-actions">
+            <button class="state-btn ghost" id="resumeDiscard" type="button">舍弃</button>
+          </div>
+        </div>
+
+        <div class="state-card record hidden" id="recordCard">
+          <div class="state-icon">🏆</div>
+          <div class="state-info">
+            <div class="state-title">上次完成</div>
+            <div class="state-desc" id="recordDesc"></div>
+          </div>
+          <div class="state-actions">
+            <button class="state-btn ghost" id="recordReplay" type="button">重玩</button>
+          </div>
+        </div>
+
+        <div class="diff-list" id="diffList"></div>
+        <p class="foot-note">每道题都保证只有唯一解</p>
+      </div>
+
+      <!-- 其他游戏 -->
+      <div class="tab-page hidden" id="pageGames">
+        <header class="page-head">
+          <h2>其他游戏</h2>
+          <p class="sub">更多数独变体玩法</p>
+        </header>
+
+        <button class="daily-card" id="dailyHyper" type="button">
+          <div class="daily-left">
+            <span class="daily-badge">⊞ 今日超数独</span>
+            <span class="daily-date" id="dailyHyperDate"></span>
+          </div>
+          <div class="daily-go">开始 →</div>
+        </button>
+
+        <button class="daily-card" id="dailyX" type="button">
+          <div class="daily-left">
+            <span class="daily-badge">✕ 今日X数独</span>
+            <span class="daily-date" id="dailyXDate"></span>
+          </div>
+          <div class="daily-go">开始 →</div>
+        </button>
+
+        <div class="variant-row">
+          <button class="variant-card" id="variantHyper" type="button">
+            <span class="vc-icon">⊞</span>
+            <span class="vc-name">超数独</span>
+            <span class="vc-sub">四窗 Windoku</span>
+          </button>
+          <button class="variant-card" id="variantX" type="button">
+            <span class="vc-icon">✕</span>
+            <span class="vc-name">X 数独</span>
+            <span class="vc-sub">双对角线</span>
+          </button>
+        </div>
+        <p class="games-note">难度优化与标准数独一致：唯一解 · 对称挖空 · 高难筛选</p>
+      </div>
+
+      <!-- 我 -->
+      <div class="tab-page hidden" id="pageMe">
+        <header class="page-head">
+          <h2>我</h2>
+          <p class="sub" id="meDesc">本地玩家 · 排行榜与设置</p>
+        </header>
+
+        <div class="state-card rank" id="rankCard">
+          <div class="state-icon">🏆</div>
+          <div class="state-info">
+            <div class="state-title">排行榜</div>
+            <div class="state-desc" id="rankDesc">各模式前十名 · 看看谁最快</div>
+          </div>
+          <div class="diff-arrow">→</div>
+        </div>
+
+        <div class="state-card guide" id="guideCard">
+          <div class="state-icon">📖</div>
+          <div class="state-info">
+            <div class="state-title">功能解说</div>
+            <div class="state-desc">每个功能有什么用、效果长什么样，一看就懂</div>
+          </div>
+          <div class="diff-arrow">→</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 底部栏目 -->
+    <nav class="tabbar" id="tabbar">
+      <button class="tab-item active" id="navSudoku" type="button">
+        <span class="tab-icon">▦</span>
+        <span class="tab-label">数独</span>
+      </button>
+      <button class="tab-item" id="navGames" type="button">
+        <span class="tab-icon">⊞</span>
+        <span class="tab-label">其他游戏</span>
+      </button>
+      <button class="tab-item" id="navMe" type="button">
+        <span class="tab-icon">👤</span>
+        <span class="tab-label">我</span>
+      </button>
+    </nav>
+
+    <!-- ======== 游戏 ======== -->
+    <section id="gameView" class="hidden">
+      <div class="game-top">
+        <button class="icon-btn" id="btnBack" type="button">←</button>
+        <div class="game-title-wrap">
+          <div class="game-title" id="gameTitle">简单</div>
+          <div class="game-sub" id="gameSub">00:00</div>
+        </div>
+        <button class="icon-btn" id="btnRestart" type="button">↻</button>
+      </div>
+      <div class="status-row">
+        <span class="chip" id="diffChip">简单</span>
+        <span id="mistakes">错误 0</span>
+      </div>
+      <div class="variant-note hidden" id="variantNote"></div>
+      <div class="sim-bar hidden" id="simBar">
+        <button class="sim-badge" id="simBadge" type="button">🔮 推演中 · 退出</button>
+        <button class="sim-apply" id="simApply" type="button">✓ 应用</button>
+      </div>
+      <div class="board-card" id="boardCard">
+        <div class="board" id="board"></div>
+      </div>
+      <div class="controls">
+        <button class="ctl" id="btnNotes" type="button"><span>✎</span>笔记</button>
+        <button class="ctl" id="btnUndo" type="button"><span>↩</span>撤销</button>
+        <button class="ctl" id="btnErase" type="button"><span>⌫</span>擦除</button>
+        <button class="ctl" id="btnHint" type="button"><span>💡</span>提示</button>
+        <button class="ctl" id="btnSim" type="button"><span>🔮</span>推演</button>
+      </div>
+      <div class="pad" id="pad"></div>
+    </section>
+  </main>
+
+  <!-- 退出选择弹窗 -->
+  <div class="overlay hidden" id="exitOverlay">
+    <div class="win-card">
+      <div class="trophy">⏸</div>
+      <h2>退出游戏？</h2>
+      <p class="win-stats">选择保存方式，下次可以接着玩</p>
+      <div class="exit-actions">
+        <button class="btn primary" id="exitSave" type="button">💾 保存并退出</button>
+        <button class="btn ghost" id="exitDiscard" type="button">🗑 不保存退出</button>
+        <button class="btn ghost" id="exitCancel" type="button">继续游戏</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认弹窗（舍弃存档等） -->
+  <div class="overlay hidden" id="confirmOverlay">
+    <div class="win-card">
+      <h2 id="confirmTitle">确定？</h2>
+      <p class="win-stats" id="confirmText"></p>
+      <div class="win-actions">
+        <button class="btn danger" id="confirmOk" type="button">确定</button>
+        <button class="btn ghost" id="confirmCancel" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 完成后检查结果弹窗 -->
+  <div class="overlay hidden" id="checkOverlay">
+    <div class="win-card">
+      <div class="trophy">🔍</div>
+      <h2 id="checkTitle">还有错误</h2>
+      <p class="win-stats" id="checkText">错误格子已标红，修改后会自动再次检查。</p>
+      <div class="win-actions">
+        <button class="btn primary" id="checkOk" type="button">知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 排行榜弹窗 -->
+  <div class="overlay hidden" id="rankOverlay">
+    <div class="rank-panel">
+      <div class="rank-head">
+        <h2>🏆 排行榜</h2>
+        <button class="rank-close" id="rankClose" type="button">✕</button>
+      </div>
+      <div class="rank-profile">
+        <input class="rank-input" id="rankName" placeholder="默认用户名" maxlength="12">
+        <button class="rank-save" id="rankSave" type="button">保存</button>
+      </div>
+      <div class="rank-server">
+        <input class="rank-input" id="rankServer" placeholder="排行榜服务器地址（可留空 = 仅本地）" maxlength="120">
+        <button class="rank-save" id="rankServerSave" type="button">保存</button>
+      </div>
+      <div class="rank-tabs" id="rankTabs"></div>
+      <div class="rank-body" id="rankBody"></div>
+    </div>
+  </div>
+
+  <!-- 功能解说弹窗 -->
+  <div class="overlay hidden" id="guideOverlay">
+    <div class="guide-panel">
+      <div class="rank-head">
+        <h2>📖 功能解说</h2>
+        <button class="rank-close" id="guideClose" type="button">✕</button>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">四档难度 · 四种风格</div>
+        <div class="guide-desc">简单=清新绿、普通=经典蓝、专家=玫瑰粉、宇宙无敌=星云紫；难度递增——专家 24–28 提示，宇宙无敌 24–26 提示且解题搜索量要求更高。</div>
+        <div class="guide-demo">
+          <div class="mini-board mini-easy"><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i></div>
+          <div class="mini-board mini-normal"><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i></div>
+          <div class="mini-board mini-expert"><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i></div>
+          <div class="mini-board mini-super"><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i></div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">超数独（Windoku）规则</div>
+        <div class="guide-desc">除行、列、宫各含 1–9 外，四个灰色 3×3 窗也各须含 1–9。窗位于第 2–4 行/列与第 6–8 行/列交叉处（棋盘上以浅灰标记）。</div>
+        <div class="guide-demo">
+          <div class="gboard" id="guideHyperBoard"></div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">X 数独（对角线）规则</div>
+        <div class="guide-desc">除行、列、宫各含 1–9 外，两条对角线（↘ 左上到右下、↙ 右上到左下）也各须含 1–9，每个数字在每条对角线上只出现一次。</div>
+        <div class="guide-demo">
+          <div class="gboard" id="guideXBoard"></div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">每日一题</div>
+        <div class="guide-desc">按日期固定生成，当天所有人都是同一道题；完成会记录"已完成 ✓"，第二天自动换新题。</div>
+        <div class="guide-demo">
+          <div class="mdaily">
+            <span class="mdaily-title">每日一题</span>
+            <span class="mdaily-date">8月18日 · 周二</span>
+            <span class="mdaily-go">开始 →</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">报错方式可选</div>
+        <div class="guide-desc">「⚡ 及时报错」填错立刻标红计数；「🏁 完成后检查」填的时候不提示，全部填完自动核对、有错才标红。</div>
+        <div class="guide-demo">
+          <div class="mcol">
+            <div class="mboard"><i class="mcell given">5</i><i class="mcell"></i><i class="mcell err">3</i><i class="mcell"></i><i class="mcell given">9</i><i class="mcell"></i><i class="mcell"></i><i class="mcell"></i><i class="mcell given">7</i></div>
+            <span class="mlabel">⚡ 填错立即标红</span>
+          </div>
+          <div class="mcol">
+            <div class="mboard"><i class="mcell given">5</i><i class="mcell"></i><i class="mcell user">3</i><i class="mcell"></i><i class="mcell given">9</i><i class="mcell"></i><i class="mcell"></i><i class="mcell"></i><i class="mcell given">7</i></div>
+            <span class="mlabel">🏁 填完才核对</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">自选格子提示</div>
+        <div class="guide-desc">先点选一个空格子，再点「💡 提示」，只提示你选中的那一格；不按顺序自动填。</div>
+        <div class="guide-demo">
+          <div class="mcol">
+            <div class="mboard"><i class="mcell given">5</i><i class="mcell"></i><i class="mcell sel"></i><i class="mcell"></i><i class="mcell given">9</i><i class="mcell"></i><i class="mcell"></i><i class="mcell"></i><i class="mcell given">7</i></div>
+            <span class="mlabel">选中空格子</span>
+          </div>
+          <div class="mtoast">请先点选一个空格子，再点提示</div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">推演模式（封棋）</div>
+        <div class="guide-desc">点「🔮 推演」封存当前局面并盖灰色滤镜；可自由试填、不计错误；「✓ 应用」把模拟结果覆盖到真实盘面，「退出」则作废。</div>
+        <div class="guide-demo">
+          <div class="msim">
+            <div class="mboard"><i class="mcell given">5</i><i class="mcell"></i><i class="mcell user">3</i><i class="mcell"></i><i class="mcell given">9</i><i class="mcell"></i><i class="mcell"></i><i class="mcell"></i><i class="mcell given">7</i></div>
+            <div class="mveil">推演中</div>
+          </div>
+          <div class="mpills">
+            <span class="msim-pill">🔮 推演中 · 退出</span>
+            <span class="msim-pill green">✓ 应用</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">存档续玩 · 完成记录</div>
+        <div class="guide-desc">退出时可选择保存或不保存；主页自动出现「继续上次游戏」；通关记录保留在「上次完成」，可查看或重玩同一题。</div>
+        <div class="guide-demo">
+          <div class="mcard"><span>▶ 继续上次游戏</span><span class="mcard-sub">普通 · 已填 23/81 · 05:12</span></div>
+          <div class="mcard gold"><span>🏆 上次完成</span><span class="mcard-sub">专家 · 用时 12:34 · 错误 2</span></div>
+        </div>
+      </div>
+
+      <div class="guide-item">
+        <div class="guide-title">本地排行榜</div>
+        <div class="guide-desc">设置默认用户名，四个模式各自独立排名，只显示前十名；可看个人最佳/最近/平均对比。纯本地保存，不上传。</div>
+        <div class="guide-demo">
+          <div class="mrank">
+            <div class="mrank-row"><b>🥇</b><span>小明</span><em>12:34</em></div>
+            <div class="mrank-row me"><b>🥈</b><span>你</span><em>15:20</em></div>
+            <div class="mrank-row"><b>🥉</b><span>小红</span><em>18:45</em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 变体玩法：选择难度弹窗 -->
+  <div class="overlay hidden" id="variantOverlay">
+    <div class="win-card">
+      <h2 id="variantTitle">超数独 · 选择难度</h2>
+      <p class="win-stats">与标准数独相同的难度优化</p>
+      <div class="exit-actions">
+        <button class="btn primary" id="vEasy" type="button">简单</button>
+        <button class="btn primary" id="vNormal" type="button">普通</button>
+        <button class="btn primary" id="vExpert" type="button">专家</button>
+        <button class="btn ghost" id="variantCancel" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 胜利弹窗 -->
+  <div class="overlay hidden" id="winOverlay">
+    <div class="win-card">
+      <div class="confetti" id="confetti"></div>
+      <div class="trophy">🏆</div>
+      <h2>完成！</h2>
+      <p class="win-stats" id="winStats"></p>
+      <div class="win-actions">
+        <button class="btn primary" id="btnAgain" type="button">再来一局</button>
+        <button class="btn ghost" id="btnRank" type="button">🏆 排行榜</button>
+        <button class="btn ghost" id="btnHome" type="button">回主页</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="busy-overlay hidden" id="busyOverlay">
+    <div class="spinner"></div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============ 数独引擎（纯逻辑，支持播种随机数） ============ */
+const Sudoku = (() => {
+  /* 变体：normal 标准 / x 对角 / hyper 超（四窗） */
+  function buildPeers(variant) {
+    const peers = [];
+    for (let i = 0; i < 81; i++) {
+      const r = Math.floor(i / 9), c = i % 9;
+      const s = new Set();
+      for (let cc = 0; cc < 9; cc++) if (cc !== c) s.add(r * 9 + cc);
+      for (let rr = 0; rr < 9; rr++) if (rr !== r) s.add(rr * 9 + c);
+      const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+      for (let rr = br; rr < br + 3; rr++)
+        for (let cc = bc; cc < bc + 3; cc++)
+          if (rr !== r || cc !== c) s.add(rr * 9 + cc);
+      if (variant === "x") {
+        if (r === c) for (let k = 0; k < 9; k++) if (k !== r) s.add(k * 9 + k);
+        if (r + c === 8) for (let k = 0; k < 9; k++) if (k !== r) s.add(k * 9 + (8 - k));
+      }
+      if (variant === "hyper") {
+        // 标准 Windoku 四窗：第 2–4 行/列 与 第 6–8 行/列 交叉处（0 基：1–3 与 5–7）
+        const wins = [[1, 3, 1, 3], [1, 3, 5, 7], [5, 7, 1, 3], [5, 7, 5, 7]];
+        for (const w of wins) {
+          if (r >= w[0] && r <= w[1] && c >= w[2] && c <= w[3]) {
+            for (let rr = w[0]; rr <= w[1]; rr++)
+              for (let cc = w[2]; cc <= w[3]; cc++)
+                if (rr !== r || cc !== c) s.add(rr * 9 + cc);
+          }
+        }
+      }
+      peers.push(s);
+    }
+    return peers;
+  }
+  const PEERS = {
+    normal: buildPeers("normal"),
+    x: buildPeers("x"),
+    hyper: buildPeers("hyper"),
+  };
+
+  function isValid(peers, grid, i, v) {
+    for (const p of peers[i]) if (grid[p] === v) return false;
+    return true;
+  }
+
+  function shuffle(arr, rnd) {
+    for (let j = arr.length - 1; j > 0; j--) {
+      const k = Math.floor(rnd() * (j + 1));
+      const t = arr[j]; arr[j] = arr[k]; arr[k] = t;
+    }
+  }
+
+  function countSolutions(peers, grid, limit) {
+    if (limit === undefined) limit = 2;
+    let best = -1, bestCands = null;
+    for (let i = 0; i < 81; i++) {
+      if (grid[i] !== 0) continue;
+      const cands = [];
+      for (let v = 1; v <= 9; v++) if (isValid(peers, grid, i, v)) cands.push(v);
+      if (bestCands === null || cands.length < bestCands.length) {
+        best = i;
+        bestCands = cands;
+        if (cands.length <= 1) break;
+      }
+    }
+    if (best === -1) return 1;
+    let total = 0;
+    for (const v of bestCands) {
+      grid[best] = v;
+      total += countSolutions(peers, grid, limit);
+      grid[best] = 0;
+      if (total >= limit) break;
+    }
+    return total;
+  }
+
+  function fillSolution(peers, grid, rnd) {
+    for (let i = 0; i < 81; i++) {
+      if (grid[i] !== 0) continue;
+      const cands = [];
+      for (let v = 1; v <= 9; v++) if (isValid(peers, grid, i, v)) cands.push(v);
+      shuffle(cands, rnd);
+      for (const v of cands) {
+        grid[i] = v;
+        if (fillSolution(peers, grid, rnd)) return true;
+        grid[i] = 0;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  const CLUES = { easy: 44, normal: 34, expert: 24, super: 22 };
+
+  /* 解题搜索工作量：回溯搜索中尝试填数的次数，越大代表题越难。 */
+  function solveCost(peers, grid) {
+    let nodes = 0;
+    function search(g) {
+      let best = -1, bestCands = null;
+      for (let i = 0; i < 81; i++) {
+        if (g[i] !== 0) continue;
+        const cands = [];
+        for (let v = 1; v <= 9; v++) if (isValid(peers, g, i, v)) cands.push(v);
+        if (bestCands === null || cands.length < bestCands.length) {
+          best = i;
+          bestCands = cands;
+          if (cands.length <= 1) break;
+        }
+      }
+      if (best === -1) return 1;
+      let found = 0;
+      for (const v of bestCands) {
+        nodes++;
+        g[best] = v;
+        found += search(g);
+        g[best] = 0;
+        if (found >= 1) break;
+      }
+      return found;
+    }
+    search(grid.slice());
+    return nodes;
+  }
+
+  function dig(peers, target, rnd) {
+    const grid = new Array(81).fill(0);
+    fillSolution(peers, grid, rnd);
+    const solution = grid.slice();
+    let remaining = 81;
+
+    const order = [40];
+    for (let i = 0; i < 81; i++) if (i !== 40) order.push(i);
+    for (const idx of order) {
+      if (grid[idx] === 0) continue;
+      const saved = grid[idx];
+      grid[idx] = 0;
+      if (countSolutions(peers, grid, 2) === 1) {
+        remaining -= 1;
+        break;
+      }
+      grid[idx] = saved;
+    }
+
+    const positions = [];
+    for (let i = 0; i < 81; i++) positions.push(i);
+    shuffle(positions, rnd);
+
+    for (const p of positions) {
+      if (remaining <= target) break;
+      if (grid[p] === 0) continue;
+      const q = (8 - Math.floor(p / 9)) * 9 + (8 - (p % 9));
+      if (p === q || grid[q] === 0) continue;
+      const a = grid[p], b = grid[q];
+      grid[p] = 0; grid[q] = 0;
+      if (countSolutions(peers, grid, 2) === 1) {
+        remaining -= 2;
+      } else {
+        grid[p] = a; grid[q] = b;
+      }
+    }
+    return { puzzle: grid, solution, clues: remaining };
+  }
+
+  function generate(difficulty, rnd, variant) {
+    if (rnd === undefined) rnd = Math.random;
+    const peers = PEERS[variant === "x" ? "x" : variant === "hyper" ? "hyper" : "normal"];
+    const target = CLUES[difficulty] !== undefined ? CLUES[difficulty] : 36;
+    if (difficulty === "super") {
+      let last = null;
+      for (let attempt = 0; attempt < 400; attempt++) {
+        last = dig(peers, CLUES.super, rnd);
+        if (last.clues <= 26 && solveCost(peers, last.puzzle) >= 800) return last;
+      }
+      return last;
+    }
+    if (difficulty === "expert") {
+      let last = null;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        last = dig(peers, target, rnd);
+        if (last.clues <= 28 && solveCost(peers, last.puzzle) >= 250) return last;
+      }
+      return last;
+    }
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const result = dig(peers, target, rnd);
+      if (result.clues <= target) return result;
+    }
+    return dig(peers, target, rnd);
+  }
+
+  /* 播种随机数：让"每日一题"在同一天内固定不变 */
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0;
+      seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashString(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  return { generate, countSolutions, solveCost, CLUES, PEERS, mulberry32, hashString };
+})();
+
+/* ============ 界面逻辑 ============ */
+function initApp() {
+  const $ = (id) => document.getElementById(id);
+  const homeView = $("homeView"), gameView = $("gameView");
+  const boardEl = $("board"), padEl = $("pad"), diffList = $("diffList");
+  const boardCard = $("boardCard"), simBar = $("simBar"), simBadge = $("simBadge"), simApply = $("simApply");
+  const dailyCard = $("dailyCard"), dailyDate = $("dailyDate"), dailyStatus = $("dailyStatus");
+  const resumeCard = $("resumeCard"), resumeDesc = $("resumeDesc"), resumeDiscard = $("resumeDiscard");
+  const recordCard = $("recordCard"), recordDesc = $("recordDesc"), recordReplay = $("recordReplay");
+  const rankCard = $("rankCard"), rankDesc = $("rankDesc");
+  const rankOverlay = $("rankOverlay"), rankClose = $("rankClose");
+  const rankName = $("rankName"), rankSave = $("rankSave");
+  const rankServer = $("rankServer"), rankServerSave = $("rankServerSave");
+  const rankTabs = $("rankTabs"), rankBody = $("rankBody");
+  const guideCard = $("guideCard"), guideOverlay = $("guideOverlay"), guideClose = $("guideClose");
+  const guideHyperBoard = $("guideHyperBoard"), guideXBoard = $("guideXBoard");
+  const variantNote = $("variantNote");
+  const navSudoku = $("navSudoku"), navGames = $("navGames"), navMe = $("navMe");
+  const pageSudoku = $("pageSudoku"), pageGames = $("pageGames"), pageMe = $("pageMe");
+  const meDesc = $("meDesc");
+  const tabbar = $("tabbar");
+  const variantHyper = $("variantHyper"), variantX = $("variantX");
+  const variantOverlay = $("variantOverlay"), variantTitle = $("variantTitle");
+  const vEasy = $("vEasy"), vNormal = $("vNormal"), vExpert = $("vExpert"), variantCancel = $("variantCancel");
+  const dailyHyper = $("dailyHyper"), dailyHyperDate = $("dailyHyperDate");
+  const dailyX = $("dailyX"), dailyXDate = $("dailyXDate");
+  const toast = $("toast");
+  const gameTitle = $("gameTitle"), gameSub = $("gameSub"), diffChip = $("diffChip");
+  const mistakesEl = $("mistakes");
+  const winOverlay = $("winOverlay"), winStats = $("winStats"), confettiEl = $("confetti");
+  const exitOverlay = $("exitOverlay"), exitSave = $("exitSave"), exitDiscard = $("exitDiscard"), exitCancel = $("exitCancel");
+  const confirmOverlay = $("confirmOverlay"), confirmTitle = $("confirmTitle"), confirmText = $("confirmText");
+  const confirmOk = $("confirmOk"), confirmCancel = $("confirmCancel");
+  const checkOverlay = $("checkOverlay"), checkTitle = $("checkTitle"), checkOk = $("checkOk");
+  const modeImmediate = $("modeImmediate"), modeFinal = $("modeFinal");
+  const busyOverlay = $("busyOverlay"), themeColor = $("themeColor");
+  const btnBack = $("btnBack"), btnRestart = $("btnRestart");
+  const btnNotes = $("btnNotes"), btnUndo = $("btnUndo"), btnErase = $("btnErase"), btnHint = $("btnHint"), btnSim = $("btnSim");
+  const btnAgain = $("btnAgain"), btnHome = $("btnHome"), btnRank = $("btnRank");
+
+  const RANK_MODES = [
+    ["easy", "简单"],
+    ["normal", "普通"],
+    ["expert", "专家"],
+    ["super", "宇宙无敌"],
+    ["daily", "每日一题"],
+    ["x_easy", "X·简单"],
+    ["x_normal", "X·普通"],
+    ["x_expert", "X·专家"],
+    ["hyper_easy", "超·简单"],
+    ["hyper_normal", "超·普通"],
+    ["hyper_expert", "超·专家"],
+  ];
+  let currentRankMode = "easy";
+
+  const DIFFS = [
+    { key: "easy", label: "简单", desc: "约 44 个提示 · 清新绿", theme: "#1fa06a" },
+    { key: "normal", label: "普通", desc: "约 34 个提示 · 经典蓝", theme: "#3f5fd0" },
+    { key: "expert", label: "专家", desc: "24–28 个提示 · 玫瑰粉 · 高难度", theme: "#d63a63" },
+    { key: "super", label: "宇宙无敌", desc: "24–26 个提示 · 星云紫 · 极限", theme: "#7c3aed" },
+  ];
+  const MINI_CLASS = { easy: "mini-easy", normal: "mini-normal", expert: "mini-expert", super: "mini-super" };
+
+  const G = {
+    mode: "diff",            // diff | daily
+    difficulty: "normal",
+    variant: "normal",       // normal | x | hyper
+    puzzle: null, solution: null, givens: new Set(),
+    cells: null, notes: null,
+    selected: -1, notesMode: false, mistakes: 0,
+    errorMode: "immediate",   // immediate | final
+    showErrors: false,
+    status: "idle",
+    elapsed: 0, timerId: null,
+    undoStack: [],
+    simActive: false,
+    simCells: null,
+    simNotes: null,
+    simUndo: null,
+  };
+
+  const cellEls = [];
+  for (let i = 0; i < 81; i++) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "cell";
+    b.addEventListener("click", () => select(i));
+    boardEl.appendChild(b);
+    cellEls.push(b);
+  }
+  const numEls = [];
+  let pendingVariant = "normal";
+  let currentTab = "sudoku";
+
+  /* 主页难度卡片（含固定配色的小预览图） */
+  DIFFS.forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "diff-card";
+    b.innerHTML =
+      '<div class="mini-board ' + MINI_CLASS[d.key] + '">' +
+      '<i class="filled"></i><i></i><i></i><i></i><i class="filled"></i><i></i><i></i><i></i><i class="filled"></i>' +
+      "</div>" +
+      '<div class="diff-info"><div class="diff-name">' + d.label + "</div>" +
+      '<div class="diff-desc">' + d.desc + "</div></div>" +
+      '<div class="diff-arrow">→</div>';
+    b.addEventListener("click", () => newGame(d.key));
+    diffList.appendChild(b);
+  });
+
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "num";
+    b.textContent = String(n);
+    b.addEventListener("click", () => inputNumber(n));
+    padEl.appendChild(b);
+    numEls.push(b);
+  }
+
+  btnBack.addEventListener("click", onBackPressed);
+  btnRestart.addEventListener("click", restart);
+  btnNotes.addEventListener("click", toggleNotes);
+  btnUndo.addEventListener("click", undo);
+  btnErase.addEventListener("click", erase);
+  btnHint.addEventListener("click", hint);
+  btnSim.addEventListener("click", toggleSim);
+  simBadge.addEventListener("click", exitSim);
+  simApply.addEventListener("click", () => {
+    askConfirm("应用推演结果？", "推演的内容将覆盖当前盘面，覆盖后原局面不可恢复。", applySim);
+  });
+  btnAgain.addEventListener("click", () => {
+    winOverlay.classList.add("hidden");
+    restart();
+  });
+  btnHome.addEventListener("click", () => {
+    winOverlay.classList.add("hidden");
+    goHome();
+  });
+  btnRank.addEventListener("click", () => {
+    winOverlay.classList.add("hidden");
+    openRanking();
+  });
+  dailyCard.addEventListener("click", startDaily);
+  rankCard.addEventListener("click", openRanking);
+  rankClose.addEventListener("click", closeRanking);
+  guideCard.addEventListener("click", () => {
+    renderGuideBoards();
+    guideOverlay.classList.remove("hidden");
+  });
+  guideClose.addEventListener("click", () => guideOverlay.classList.add("hidden"));
+  navSudoku.addEventListener("click", () => switchTab("sudoku"));
+  navGames.addEventListener("click", () => switchTab("games"));
+  navMe.addEventListener("click", () => switchTab("me"));
+  variantHyper.addEventListener("click", () => openVariantDialog("hyper"));
+  variantX.addEventListener("click", () => openVariantDialog("x"));
+  dailyHyper.addEventListener("click", () => startVariantDaily("hyper"));
+  dailyX.addEventListener("click", () => startVariantDaily("x"));
+  vEasy.addEventListener("click", () => chooseVariantDifficulty("easy"));
+  vNormal.addEventListener("click", () => chooseVariantDifficulty("normal"));
+  vExpert.addEventListener("click", () => chooseVariantDifficulty("expert"));
+  variantCancel.addEventListener("click", () => variantOverlay.classList.add("hidden"));
+  rankSave.addEventListener("click", () => {
+    const p = saveProfile();
+    rankDesc.textContent = p.name + " · 本地排名";
+    meDesc.textContent = p.name + " · 本地玩家 · 排行榜与设置";
+    renderRanking(currentRankMode);
+  });
+  rankServerSave.addEventListener("click", () => {
+    saveServer();
+    renderRanking(currentRankMode);
+  });
+  resumeCard.addEventListener("click", resumeGame);
+  resumeDiscard.addEventListener("click", (e) => {
+    e.stopPropagation();
+    askConfirm("舍弃当前进度？", "未完成的进度将被删除，且不可恢复。", () => {
+      clearSave();
+      refreshHome();
+    });
+  });
+  recordCard.addEventListener("click", () => {
+    const r = loadRecord();
+    if (r) viewRecord(r);
+  });
+  recordReplay.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const r = loadRecord();
+    if (r) replayRecord(r);
+  });
+
+  exitSave.addEventListener("click", () => {
+    exitOverlay.classList.add("hidden");
+    persistSave();
+    goHome();
+  });
+  exitDiscard.addEventListener("click", () => {
+    exitOverlay.classList.add("hidden");
+    clearSave();
+    goHome();
+  });
+  exitCancel.addEventListener("click", () => exitOverlay.classList.add("hidden"));
+
+  confirmCancel.addEventListener("click", () => {
+    confirmOverlay.classList.add("hidden");
+    confirmAction = null;
+  });
+  confirmOk.addEventListener("click", () => {
+    confirmOverlay.classList.add("hidden");
+    const fn = confirmAction;
+    confirmAction = null;
+    if (fn) fn();
+  });
+  checkOk.addEventListener("click", () => checkOverlay.classList.add("hidden"));
+  modeImmediate.addEventListener("click", () => setErrorMode("immediate"));
+  modeFinal.addEventListener("click", () => setErrorMode("final"));
+
+  document.addEventListener("keydown", (e) => {
+    if (!winOverlay.classList.contains("hidden") || !exitOverlay.classList.contains("hidden") ||
+        !confirmOverlay.classList.contains("hidden") || !rankOverlay.classList.contains("hidden") ||
+        !guideOverlay.classList.contains("hidden") || !variantOverlay.classList.contains("hidden")) return;
+    const k = e.key;
+    if (k >= "1" && k <= "9") { inputNumber(Number(k)); return; }
+    if (k === "Backspace" || k === "Delete") { erase(); return; }
+    if (k === "n" || k === "N") { toggleNotes(); return; }
+    if (k === "u" || k === "U") { undo(); return; }
+    if (k === "h" || k === "H") { hint(); return; }
+  });
+
+  let confirmAction = null;
+  function askConfirm(title, text, fn) {
+    confirmTitle.textContent = title;
+    confirmText.textContent = text;
+    confirmAction = fn;
+    confirmOverlay.classList.remove("hidden");
+  }
+
+  function setErrorMode(m) {
+    if (G.errorMode === m) return;
+    G.errorMode = m;
+    if (m === "final") {
+      G.showErrors = false;
+      G.mistakes = 0;
+    }
+    try { localStorage.setItem("sudoku_error_mode", m); } catch (e) { /* ignore */ }
+    applyErrorModeUI();
+    render();
+  }
+
+  function applyErrorModeUI() {
+    modeImmediate.classList.toggle("active", G.errorMode === "immediate");
+    modeFinal.classList.toggle("active", G.errorMode === "final");
+  }
+
+  /* ---------- 日期与每日一题 ---------- */
+  const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+  function todayStr(d) {
+    if (d === undefined) d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+  function todayLabel(d) {
+    if (d === undefined) d = new Date();
+    return (d.getMonth() + 1) + "月" + d.getDate() + "日 · 周" + WEEK[d.getDay()];
+  }
+  function dailyDoneKey() { return "sudokuDailyDone_" + todayStr(); }
+  function isDailyDone() {
+    try { return localStorage.getItem(dailyDoneKey()) === "1"; } catch (e) { return false; }
+  }
+  function refreshDailyCard() {
+    dailyDate.textContent = todayLabel();
+    dailyStatus.textContent = isDailyDone() ? "已完成 ✓" : "今天还没做 · 每天更新";
+    dailyHyperDate.textContent = todayLabel();
+    dailyXDate.textContent = todayLabel();
+  }
+
+  /* ---------- 存档（localStorage） ---------- */
+  function diffLabel(key) {
+    const d = DIFFS.find((x) => x.key === key);
+    return d ? d.label : key;
+  }
+  function gameTitleLabel() {
+    if (G.mode === "vdaily") return (G.variant === "x" ? "X数独" : "超数独") + " · 每日一题";
+    const label = G.mode === "daily" ? "每日一题" : diffLabel(G.difficulty);
+    if (G.variant === "x") return "X数独 · " + label;
+    if (G.variant === "hyper") return "超数独 · " + label;
+    return label;
+  }
+  function rankModeKey() {
+    if (G.mode === "daily") return "daily";
+    const d = G.difficulty;
+    if (G.variant === "x") return "x_" + d;
+    if (G.variant === "hyper") return "hyper_" + d;
+    return d;
+  }
+  function persistSave() {
+    if (!G.puzzle) return;
+    try {
+      localStorage.setItem("sudoku_save", JSON.stringify({
+        mode: G.mode,
+        difficulty: G.difficulty,
+        variant: G.variant,
+        puzzle: G.puzzle,
+        solution: G.solution,
+        cells: G.cells,
+        notes: G.notes,
+        elapsed: G.elapsed,
+        mistakes: G.mistakes,
+        status: G.status,
+        savedAt: Date.now(),
+      }));
+    } catch (e) { /* 隐私模式忽略 */ }
+  }
+  function loadSave() {
+    try {
+      const s = JSON.parse(localStorage.getItem("sudoku_save") || "null");
+      if (s && Array.isArray(s.puzzle) && s.puzzle.length === 81 && Array.isArray(s.solution) && s.solution.length === 81) {
+        return s;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  function clearSave() {
+    try { localStorage.removeItem("sudoku_save"); } catch (e) { /* ignore */ }
+  }
+  function saveRecord() {
+    try {
+      localStorage.setItem("sudoku_lastCompleted", JSON.stringify({
+        mode: G.mode,
+        difficulty: G.difficulty,
+        variant: G.variant,
+        puzzle: G.puzzle,
+        solution: G.solution,
+        elapsed: G.elapsed,
+        mistakes: G.mistakes,
+        completedAt: Date.now(),
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  function loadRecord() {
+    try {
+      const r = JSON.parse(localStorage.getItem("sudoku_lastCompleted") || "null");
+      if (r && Array.isArray(r.puzzle) && r.puzzle.length === 81 && Array.isArray(r.solution) && r.solution.length === 81) {
+        return r;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  /* ---------- 排行榜 ---------- */
+  let toastTimer = null;
+  function showToast(text) {
+    toast.textContent = text;
+    toast.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.add("hidden"), 1800);
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function loadProfile() {
+    try {
+      const p = JSON.parse(localStorage.getItem("sudoku_profile") || "null");
+      if (p && p.name) return { name: p.name };
+    } catch (e) { /* ignore */ }
+    return { name: "玩家" };
+  }
+  function saveProfile() {
+    const p = {
+      name: rankName.value.trim() || "玩家",
+    };
+    try { localStorage.setItem("sudoku_profile", JSON.stringify(p)); } catch (e) { /* ignore */ }
+    return p;
+  }
+  function loadRankings() {
+    try {
+      const a = JSON.parse(localStorage.getItem("sudoku_rankings") || "[]");
+      return Array.isArray(a) ? a : [];
+    } catch (e) { return []; }
+  }
+  function storeRankings(a) {
+    try { localStorage.setItem("sudoku_rankings", JSON.stringify(a)); } catch (e) { /* ignore */ }
+  }
+  function loadServer() {
+    try {
+      const s = localStorage.getItem("sudoku_server");
+      return s && s.trim() ? s.trim().replace(/\/+$/, "") : "";
+    } catch (e) { return ""; }
+  }
+  function saveServer() {
+    const v = rankServer.value.trim().replace(/\/+$/, "");
+    try { localStorage.setItem("sudoku_server", v); } catch (e) { /* ignore */ }
+    return v;
+  }
+  function onlineSubmit() {
+    const server = loadServer();
+    if (!server) return;
+    const p = loadProfile();
+    try {
+      fetch(server + "/api/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: rankModeKey(), name: p.name, elapsed: G.elapsed, mistakes: G.mistakes }),
+      }).catch(() => { /* 离线时忽略 */ });
+    } catch (e) { /* ignore */ }
+  }
+  function recordScore() {
+    const p = loadProfile();
+    const mode = rankModeKey();
+    const a = loadRankings();
+    a.push({
+      mode: mode,
+      name: p.name,
+      elapsed: G.elapsed,
+      mistakes: G.mistakes,
+      ts: Date.now(),
+    });
+    if (a.length > 1000) a.splice(0, a.length - 1000);
+    storeRankings(a);
+  }
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    return (d.getMonth() + 1) + "月" + d.getDate() + "日";
+  }
+  function renderLocalRanking(mode) {
+    const p = loadProfile();
+    const all = loadRankings().filter((e) => e.mode === mode);
+    const sorted = all.slice().sort((a, b) => a.elapsed - b.elapsed || a.ts - b.ts);
+    const top = sorted.slice(0, 10);
+    const medals = ["🥇", "🥈", "🥉"];
+    let html = '<div class="rank-mode-badge">📴 仅本地</div>';
+    if (top.length === 0) {
+      html = '<div class="rank-empty">该模式还没有记录，完成一局即可上榜</div>';
+    } else {
+      top.forEach((e, idx) => {
+        const me = e.name === p.name;
+        html += '<div class="rank-row' + (me ? " me" : "") + '">' +
+          '<div class="rank-no">' + (medals[idx] || (idx + 1)) + "</div>" +
+          '<div class="rank-info"><div class="rank-name">' + esc(e.name) + "</div></div>" +
+          '<div><div class="rank-time">' + fmtTime(e.elapsed) + "</div>" +
+          '<div class="rank-date">' + fmtDate(e.ts) + "</div></div>" +
+          "</div>";
+      });
+    }
+    const mine = sorted.filter((e) => e.name === p.name);
+    if (mine.length > 0) {
+      const best = mine.reduce((m, e) => Math.min(m, e.elapsed), 1e9);
+      const latest = mine[mine.length - 1].elapsed;
+      const avg = Math.round(mine.reduce((s, e) => s + e.elapsed, 0) / mine.length);
+      const diff = latest - best;
+      const cmp = diff > 0
+        ? "比最快慢 " + fmtTime(diff)
+        : (diff < 0 ? "打破最快纪录，快了 " + fmtTime(-diff) : "与最快纪录持平");
+      html += '<div class="rank-stats">' +
+        "最佳 <b>" + fmtTime(best) + "</b> · 最近 <b>" + fmtTime(latest) + "</b> · 平均 <b>" + fmtTime(avg) + "</b><br>" +
+        "共 " + mine.length + " 局，" + cmp + "</div>";
+    }
+    rankBody.innerHTML = html;
+  }
+  function renderRanking(mode) {
+    const server = loadServer();
+    if (server) {
+      renderLocalRanking(mode);
+      fetch(server + "/api/ranking?mode=" + encodeURIComponent(mode))
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && Array.isArray(data.entries)) renderOnlineRanking(mode, data.entries, server);
+        })
+        .catch(() => { /* 在线失败，保留本地 */ });
+    } else {
+      renderLocalRanking(mode);
+    }
+  }
+  function renderOnlineRanking(mode, entries, server) {
+    const p = loadProfile();
+    const medals = ["🥇", "🥈", "🥉"];
+    let html = '<div class="rank-mode-badge">🌐 在线排行榜</div>';
+    if (entries.length === 0) {
+      html += '<div class="rank-empty">该模式还没有线上记录</div>';
+    } else {
+      entries.forEach((e, idx) => {
+        const me = e.name === p.name;
+        html += '<div class="rank-row' + (me ? " me" : "") + '">' +
+          '<div class="rank-no">' + (medals[idx] || (idx + 1)) + "</div>" +
+          '<div class="rank-info"><div class="rank-name">' + esc(e.name) + "</div>" +
+          '<div class="rank-addr">' + esc(e.address || "本地") + "</div></div>" +
+          '<div><div class="rank-time">' + fmtTime(e.elapsed) + "</div>" +
+          '<div class="rank-date">' + fmtDate(e.ts) + "</div></div>" +
+          "</div>";
+      });
+    }
+    rankBody.innerHTML = html;
+    fetch(server + "/api/me?mode=" + encodeURIComponent(mode) + "&name=" + encodeURIComponent(p.name))
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.count > 0) {
+          const cmp = d.latest < d.best
+            ? "打破最快纪录，快了 " + fmtTime(d.best - d.latest)
+            : (d.latest > d.best ? "比最快慢 " + fmtTime(d.latest - d.best) : "与最快纪录持平");
+          rankBody.innerHTML = html + '<div class="rank-stats">' +
+            "最佳 <b>" + fmtTime(d.best) + "</b> · 最近 <b>" + fmtTime(d.latest) + "</b> · 平均 <b>" + fmtTime(d.avg) + "</b><br>" +
+            "线上共 " + d.count + " 局，" + cmp + "</div>";
+        }
+      })
+      .catch(() => {});
+  }
+  function renderRankTabs() {
+    rankTabs.innerHTML = "";
+    RANK_MODES.forEach((pair) => {
+      const key = pair[0], label = pair[1];
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "rank-tab" + (key === currentRankMode ? " active" : "");
+      b.textContent = label;
+      b.addEventListener("click", () => {
+        currentRankMode = key;
+        renderRankTabs();
+        renderRanking(key);
+      });
+      rankTabs.appendChild(b);
+    });
+  }
+  function openRanking() {
+    const p = loadProfile();
+    rankName.value = p.name;
+    rankServer.value = loadServer();
+    renderRankTabs();
+    renderRanking(currentRankMode);
+    rankOverlay.classList.remove("hidden");
+  }
+  function closeRanking() {
+    rankOverlay.classList.add("hidden");
+  }
+
+  /* ---------- 主页卡片 ---------- */
+  function refreshHome() {
+    refreshDailyCard();
+    const s = loadSave();
+    if (s && s.status === "playing") {
+      const filled = s.cells.reduce((n, v) => n + (v !== 0 ? 1 : 0), 0);
+      const label = s.mode === "daily" ? "每日一题" : diffLabel(s.difficulty);
+      resumeDesc.textContent = label + " · 已填 " + filled + "/81 · " + fmtTime(s.elapsed || 0);
+      resumeCard.classList.remove("hidden");
+    } else {
+      resumeCard.classList.add("hidden");
+    }
+    const r = loadRecord();
+    if (r) {
+      const label = r.mode === "daily" ? "每日一题" : diffLabel(r.difficulty);
+      const d = new Date(r.completedAt);
+      recordDesc.textContent = label + " · 用时 " + fmtTime(r.elapsed || 0) + " · 错误 " + (r.mistakes || 0) +
+        " · " + (d.getMonth() + 1) + "月" + d.getDate() + "日";
+      recordCard.classList.remove("hidden");
+    } else {
+      recordCard.classList.add("hidden");
+    }
+  }
+
+  /* ---------- 视图切换 ---------- */
+  function applyTheme(key) {
+    document.body.className = "theme-" + key;
+    const t = DIFFS.find((d) => d.key === key);
+    themeColor.setAttribute("content", t ? t.theme : "#3f5fd0");
+  }
+  function showHome() {
+    stopTimer();
+    refreshHome();
+    applyTheme("normal");
+    gameView.classList.add("hidden");
+    homeView.classList.remove("hidden");
+    tabbar.classList.remove("hidden");
+  }
+  function showGame() {
+    homeView.classList.add("hidden");
+    gameView.classList.remove("hidden");
+    tabbar.classList.add("hidden");
+  }
+
+  /* ---------- 开始新游戏 ---------- */
+  function startDaily() {
+    const seed = Sudoku.hashString(todayStr());
+    const rnd = Sudoku.mulberry32(seed);
+    G.mode = "daily";
+    G.difficulty = "normal";
+    G.variant = "normal";
+    beginGame(rnd);
+  }
+  function startVariantDaily(variant) {
+    G.mode = "vdaily";
+    G.difficulty = "normal";
+    G.variant = variant;
+    const seed = Sudoku.hashString(todayStr() + "-" + variant);
+    const rnd = Sudoku.mulberry32(seed);
+    beginGame(rnd);
+  }
+  function newGame(key) {
+    startGame(key, "normal");
+  }
+  function startGame(difficulty, variant) {
+    G.mode = "diff";
+    G.difficulty = difficulty;
+    G.variant = variant;
+    beginGame(Math.random);
+  }
+  function startVariantGame(variant, difficulty) {
+    startGame(difficulty, variant);
+  }
+  function openVariantDialog(variant) {
+    pendingVariant = variant;
+    variantTitle.textContent = (variant === "x" ? "X 数独" : "超数独") + " · 选择难度";
+    variantOverlay.classList.remove("hidden");
+  }
+  function chooseVariantDifficulty(difficulty) {
+    variantOverlay.classList.add("hidden");
+    startVariantGame(pendingVariant, difficulty);
+  }
+  function switchTab(name) {
+    currentTab = name;
+    pageSudoku.classList.toggle("hidden", name !== "sudoku");
+    pageGames.classList.toggle("hidden", name !== "games");
+    pageMe.classList.toggle("hidden", name !== "me");
+    navSudoku.classList.toggle("active", name === "sudoku");
+    navGames.classList.toggle("active", name === "games");
+    navMe.classList.toggle("active", name === "me");
+  }
+  /* 功能解说里的变体规则示意图 */
+  function renderGuideBoards() {
+    let h = "", x = "";
+    for (let i = 0; i < 81; i++) {
+      const r = Math.floor(i / 9), c = i % 9;
+      const win = ((r >= 1 && r <= 3) || (r >= 5 && r <= 7)) &&
+                  ((c >= 1 && c <= 3) || (c >= 5 && c <= 7));
+      const diag = r === c || r + c === 8;
+      h += '<i class="gcell' + (win ? " win" : "") + '"></i>';
+      x += '<i class="gcell' + (diag ? " diag" : "") + '"></i>';
+    }
+    guideHyperBoard.innerHTML = h;
+    guideXBoard.innerHTML = x;
+  }
+
+  function beginGame(rnd) {
+    stopTimer();
+    clearSave();
+    G.status = "generating";
+    G.selected = -1; G.mistakes = 0; G.elapsed = 0; G.undoStack = [];
+    G.simActive = false; G.simCells = null; G.simNotes = null; G.simUndo = null;
+    btnSim.classList.remove("active");
+    G.showErrors = false;
+    G.notesMode = false;
+    btnNotes.classList.remove("active");
+    mistakesEl.textContent = "错误 0";
+    gameSub.textContent = (G.mode === "daily" || G.mode === "vdaily") ? todayLabel() : "00:00";
+    gameTitle.textContent = gameTitleLabel();
+    diffChip.textContent = gameTitleLabel();
+    winOverlay.classList.add("hidden");
+    exitOverlay.classList.add("hidden");
+    busyOverlay.classList.remove("hidden");
+    applyTheme(G.mode === "daily" ? "normal" : G.difficulty);
+    showGame();
+    setTimeout(() => {
+      const gen = Sudoku.generate(G.difficulty, rnd, G.variant);
+      G.puzzle = gen.puzzle;
+      G.solution = gen.solution;
+      G.givens = new Set();
+      for (let i = 0; i < 81; i++) if (gen.puzzle[i] !== 0) G.givens.add(i);
+      G.cells = gen.puzzle.slice();
+      G.notes = new Array(81).fill(0);
+      G.status = "playing";
+      busyOverlay.classList.add("hidden");
+      render();
+      persistSave();
+      startTimer();
+    }, 40);
+  }
+
+  /* 读取存档继续玩 */
+  function resumeGame() {
+    const s = loadSave();
+    if (!s || s.status !== "playing") return;
+    stopTimer();
+    G.mode = s.mode || "diff";
+    G.difficulty = s.difficulty || "normal";
+    G.variant = (s.variant === "x" || s.variant === "hyper") ? s.variant : "normal";
+    G.puzzle = s.puzzle.slice();
+    G.solution = s.solution.slice();
+    G.cells = s.cells.slice();
+    G.notes = s.notes && s.notes.length === 81 ? s.notes.slice() : new Array(81).fill(0);
+    G.givens = new Set();
+    for (let i = 0; i < 81; i++) if (G.puzzle[i] !== 0) G.givens.add(i);
+    G.elapsed = s.elapsed || 0;
+    G.mistakes = s.mistakes || 0;
+    G.selected = -1;
+    G.notesMode = false;
+    G.undoStack = [];
+    G.simActive = false; G.simCells = null; G.simNotes = null; G.simUndo = null;
+    btnSim.classList.remove("active");
+    G.showErrors = false;
+    G.status = "playing";
+    btnNotes.classList.remove("active");
+    gameTitle.textContent = gameTitleLabel();
+    gameSub.textContent = (G.mode === "daily" || G.mode === "vdaily") ? todayLabel() : fmtTime(G.elapsed);
+    diffChip.textContent = gameTitleLabel();
+    applyTheme(G.mode === "daily" ? "normal" : G.difficulty);
+    showGame();
+    render();
+    startTimer();
+  }
+
+  /* 查看上次完成的棋盘 */
+  function viewRecord(r) {
+    stopTimer();
+    G.mode = r.mode || "diff";
+    G.difficulty = r.difficulty || "normal";
+    G.variant = (r.variant === "x" || r.variant === "hyper") ? r.variant : "normal";
+    G.puzzle = r.puzzle.slice();
+    G.solution = r.solution.slice();
+    G.cells = r.solution.slice();
+    G.notes = new Array(81).fill(0);
+    G.givens = new Set();
+    for (let i = 0; i < 81; i++) if (G.puzzle[i] !== 0) G.givens.add(i);
+    G.elapsed = r.elapsed || 0;
+    G.mistakes = r.mistakes || 0;
+    G.selected = -1;
+    G.notesMode = false;
+    G.undoStack = [];
+    G.simActive = false; G.simCells = null; G.simNotes = null; G.simUndo = null;
+    btnSim.classList.remove("active");
+    G.status = "won";
+    gameTitle.textContent = gameTitleLabel() + " · 已完成";
+    gameSub.textContent = "用时 " + fmtTime(G.elapsed);
+    diffChip.textContent = "已完成";
+    applyTheme(G.mode === "daily" ? "normal" : G.difficulty);
+    showGame();
+    render();
+  }
+
+  /* 用上次完成的题目重新玩 */
+  function replayRecord(r) {
+    stopTimer();
+    G.mode = r.mode || "diff";
+    G.difficulty = r.difficulty || "normal";
+    G.variant = (r.variant === "x" || r.variant === "hyper") ? r.variant : "normal";
+    G.puzzle = r.puzzle.slice();
+    G.solution = r.solution.slice();
+    G.cells = r.puzzle.slice();
+    G.notes = new Array(81).fill(0);
+    G.givens = new Set();
+    for (let i = 0; i < 81; i++) if (G.puzzle[i] !== 0) G.givens.add(i);
+    G.elapsed = 0;
+    G.mistakes = 0;
+    G.selected = -1;
+    G.notesMode = false;
+    G.undoStack = [];
+    G.simActive = false; G.simCells = null; G.simNotes = null; G.simUndo = null;
+    btnSim.classList.remove("active");
+    G.showErrors = false;
+    G.status = "playing";
+    gameTitle.textContent = gameTitleLabel();
+    gameSub.textContent = (G.mode === "daily" || G.mode === "vdaily") ? todayLabel() : "00:00";
+    diffChip.textContent = gameTitleLabel();
+    applyTheme(G.mode === "daily" ? "normal" : G.difficulty);
+    showGame();
+    render();
+    persistSave();
+    startTimer();
+  }
+
+  function restart() {
+    if (G.mode === "daily") startDaily();
+    else if (G.mode === "vdaily") startVariantDaily(G.variant);
+    else startGame(G.difficulty, G.variant);
+  }
+
+  /* 返回主页：游戏进行中时弹出选择 */
+  function onBackPressed() {
+    if (G.status === "playing" || G.status === "generating") {
+      exitOverlay.classList.remove("hidden");
+    } else {
+      goHome();
+    }
+  }
+  function goHome() {
+    winOverlay.classList.add("hidden");
+    exitOverlay.classList.add("hidden");
+    showHome();
+  }
+
+  /* ---------- 游戏操作 ---------- */
+  /* 推演模式（封棋）：在原盘面上盖一层模拟草稿，退出即作废 */
+  function curCells() { return G.simActive ? G.simCells : G.cells; }
+  function curNotes() { return G.simActive ? G.simNotes : G.notes; }
+  function curUndo() { return G.simActive ? G.simUndo : G.undoStack; }
+
+  function toggleSim() {
+    if (G.simActive) exitSim(); else enterSim();
+  }
+  function enterSim() {
+    if (G.status !== "playing" || G.simActive) return;
+    G.simCells = G.cells.slice();
+    G.simNotes = G.notes.slice();
+    G.simUndo = [];
+    G.simActive = true;
+    G.selected = -1;
+    btnSim.classList.add("active");
+    render();
+  }
+  function exitSim() {
+    if (!G.simActive) return;
+    G.simActive = false;
+    G.simCells = null;
+    G.simNotes = null;
+    G.simUndo = null;
+    G.selected = -1;
+    btnSim.classList.remove("active");
+    render();
+  }
+
+  function countWrongCells() {
+    let wrong = 0;
+    for (let i = 0; i < 81; i++) {
+      if (!G.givens.has(i) && G.cells[i] !== 0 && G.cells[i] !== G.solution[i]) wrong++;
+    }
+    return wrong;
+  }
+
+  /* 应用推演：把模拟结果覆盖到真实盘面，然后退出推演。 */
+  function applySim() {
+    if (!G.simActive) return;
+    G.cells = G.simCells.slice();
+    G.notes = G.simNotes.slice();
+    G.undoStack = [];
+    G.simActive = false;
+    G.simCells = null;
+    G.simNotes = null;
+    G.simUndo = null;
+    G.selected = -1;
+    btnSim.classList.remove("active");
+    if (G.errorMode === "final") {
+      G.showErrors = false;
+      G.mistakes = 0;
+      render();
+      if (boardFull()) maybeCheckFinal();
+    } else {
+      G.mistakes = countWrongCells();
+      render();
+      checkWin();
+    }
+  }
+
+  function isPeer(i, j) { return Sudoku.PEERS[G.variant][i].has(j); }
+
+  /* 超数独四窗格子：四角的 3×3 区域 */
+  function isHyperCell(i) {
+    const r = Math.floor(i / 9), c = i % 9;
+    return ((r >= 1 && r <= 3) || (r >= 5 && r <= 7)) &&
+           ((c >= 1 && c <= 3) || (c >= 5 && c <= 7));
+  }
+
+  function isConflict(i) {
+    const v = curCells()[i];
+    if (v === 0) return false;
+    for (const p of Sudoku.PEERS[G.variant][i]) if (curCells()[p] === v) return true;
+    return false;
+  }
+
+  function select(i) {
+    if (G.status !== "playing") return;
+    G.selected = i;
+    render();
+  }
+
+  function pushUndo(i) {
+    const stack = curUndo();
+    stack.push({ i: i, v: curCells()[i], n: curNotes()[i] });
+    if (stack.length > 200) stack.shift();
+  }
+
+  function inputNumber(n) {
+    if (G.status !== "playing" || G.selected === -1) return;
+    const i = G.selected;
+    if (G.givens.has(i)) return;
+    const cells = curCells();
+    const notes = curNotes();
+    if (G.notesMode) {
+      if (cells[i] !== 0) return;
+      pushUndo(i);
+      notes[i] ^= (1 << (n - 1));
+      afterMove();
+      return;
+    }
+    if (cells[i] === n) {
+      pushUndo(i);
+      cells[i] = 0;
+      notes[i] = 0;
+      afterMove();
+      return;
+    }
+    pushUndo(i);
+    cells[i] = n;
+    notes[i] = 0;
+    if (!G.simActive && G.solution[i] !== n && G.errorMode === "immediate") G.mistakes++;
+    afterMove();
+  }
+
+  function toggleNotes() {
+    if (G.status !== "playing") return;
+    G.notesMode = !G.notesMode;
+    btnNotes.classList.toggle("active", G.notesMode);
+  }
+
+  function undo() {
+    const stack = curUndo();
+    const m = stack.pop();
+    if (!m) return;
+    curCells()[m.i] = m.v;
+    curNotes()[m.i] = m.n;
+    afterMove();
+  }
+
+  function erase() {
+    if (G.status !== "playing" || G.selected === -1) return;
+    const i = G.selected;
+    if (G.givens.has(i)) return;
+    const cells = curCells();
+    const notes = curNotes();
+    if (cells[i] === 0 && notes[i] === 0) return;
+    pushUndo(i);
+    cells[i] = 0;
+    notes[i] = 0;
+    afterMove();
+  }
+
+  function hint() {
+    if (G.status !== "playing") return;
+    const cells = curCells();
+    if (G.selected === -1 || cells[G.selected] !== 0) {
+      showToast("请先点选一个空格子，再点提示");
+      return;
+    }
+    const i = G.selected;
+    pushUndo(i);
+    cells[i] = G.solution[i];
+    curNotes()[i] = 0;
+    afterMove();
+  }
+
+  function afterMove() {
+    render();
+    if (G.simActive) return;
+    if (G.errorMode === "final") maybeCheckFinal();
+    else checkWin();
+  }
+
+  function boardFull() {
+    for (let i = 0; i < 81; i++) if (G.cells[i] === 0) return false;
+    return true;
+  }
+
+  /* 完成后检查：全部填完后自动核对，有错才标红提醒。 */
+  function maybeCheckFinal() {
+    if (!boardFull()) return;
+    let wrong = 0;
+    for (let i = 0; i < 81; i++) if (G.cells[i] !== G.solution[i]) wrong++;
+    if (wrong === 0) {
+      checkWin();
+      return;
+    }
+    G.showErrors = true;
+    G.mistakes = wrong;
+    render();
+    checkTitle.textContent = "还有 " + wrong + " 处错误";
+    checkOverlay.classList.remove("hidden");
+  }
+
+  function checkWin() {
+    for (let i = 0; i < 81; i++) {
+      if (G.cells[i] !== G.solution[i]) return;
+    }
+    G.status = "won";
+    stopTimer();
+    if (G.mode === "daily") {
+      try { localStorage.setItem(dailyDoneKey(), "1"); } catch (e) { /* 隐私模式忽略 */ }
+    }
+    saveRecord();
+    persistSave();
+    recordScore();
+    onlineSubmit();
+    showWin();
+  }
+
+  function startTimer() {
+    stopTimer();
+    G.timerId = setInterval(() => {
+      G.elapsed++;
+      if (G.mode !== "daily" && G.mode !== "vdaily") gameSub.textContent = fmtTime(G.elapsed);
+      persistSave();
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (G.timerId !== null) {
+      clearInterval(G.timerId);
+      G.timerId = null;
+    }
+  }
+
+  function fmtTime(s) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    const mm = String(m).padStart(2, "0"), ss = String(sec).padStart(2, "0");
+    return h > 0 ? h + ":" + mm + ":" + ss : mm + ":" + ss;
+  }
+
+  function render() {
+    if (!G.cells) return;
+    const cells = curCells();
+    const notes = curNotes();
+    mistakesEl.textContent = G.simActive
+      ? "推演中 · 不计错误"
+      : (G.errorMode === "final"
+        ? (G.showErrors ? "错误 " + G.mistakes : "完成后检查")
+        : "错误 " + G.mistakes);
+    boardCard.classList.toggle("simulating", G.simActive);
+    simBar.classList.toggle("hidden", !G.simActive);
+    if (G.variant === "hyper") {
+      variantNote.textContent = "⊞ 浅灰四窗区域也须包含 1–9";
+      variantNote.classList.remove("hidden");
+    } else if (G.variant === "x") {
+      variantNote.textContent = "✕ 两条对角线也须包含 1–9";
+      variantNote.classList.remove("hidden");
+    } else {
+      variantNote.classList.add("hidden");
+    }
+    for (let i = 0; i < 81; i++) {
+      const el = cellEls[i];
+      const v = cells[i];
+      const cls = ["cell"];
+      if (i === G.selected) cls.push("selected");
+      else if (G.selected !== -1) {
+        if (isPeer(G.selected, i)) cls.push("peer");
+        if (v !== 0 && v === G.cells[G.selected]) cls.push("same");
+      }
+      if (isConflict(i)) cls.push("conflict");
+      if (G.errorMode === "final" && G.showErrors && v !== 0 && v !== G.solution[i]) cls.push("wrong");
+      if (G.variant === "hyper" && isHyperCell(i)) cls.push("win");
+      el.className = cls.join(" ");
+
+      if (v !== 0) {
+        el.innerHTML = '<span class="v ' + (G.givens.has(i) ? "given" : "user") + '">' + v + "</span>";
+      } else if (notes[i] !== 0) {
+        let html = '<div class="notes-grid">';
+        for (let n = 1; n <= 9; n++) {
+          html += (notes[i] & (1 << (n - 1))) ? '<span class="note">' + n + "</span>" : '<span class="note"></span>';
+        }
+        el.innerHTML = html + "</div>";
+      } else {
+        el.innerHTML = "";
+      }
+    }
+    if (!G.simActive) persistSave();
+  }
+
+  function showWin() {
+    winStats.textContent = "用时 " + fmtTime(G.elapsed) + " · 错误 " + G.mistakes + " 次";
+    confettiEl.innerHTML = "";
+    const colors = ["#3f5fd0", "#1fa06a", "#f6c453", "#e8892c", "#ff5a4e", "#00b8d4"];
+    for (let i = 0; i < 48; i++) {
+      const s = document.createElement("i");
+      s.style.left = Math.random() * 100 + "%";
+      s.style.background = colors[i % colors.length];
+      s.style.animationDuration = (1.8 + Math.random() * 1.6) + "s";
+      s.style.animationDelay = (Math.random() * 0.8) + "s";
+      s.style.transform = "rotate(" + Math.random() * 360 + "deg)";
+      confettiEl.appendChild(s);
+    }
+    winOverlay.classList.remove("hidden");
+  }
+
+  try {
+    const savedMode = localStorage.getItem("sudoku_error_mode");
+    if (savedMode === "immediate" || savedMode === "final") G.errorMode = savedMode;
+  } catch (e) { /* ignore */ }
+  applyErrorModeUI();
+  const initProfile = loadProfile();
+  rankDesc.textContent = initProfile.name + " · 本地排名";
+  meDesc.textContent = initProfile.name + " · 本地玩家 · 排行榜与设置";
+  switchTab("sudoku");
+  showHome();
+}
+
+if (typeof document !== "undefined") {
+  initApp();
+}
+</script>
+</body>
+</html>
